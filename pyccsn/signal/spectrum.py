@@ -80,7 +80,8 @@ def compute_spectrogram(x, fs, t=None, wbin_t=1, mbin_t=0.1, frange=None):
         t = np.asarray(t)
         assert np.shape(x)[1] == len(t), "Length of signal and time vector must match."
         
-    nbin_set = np.arange(int(t[0]*fs), int(t[-1]*fs)-wbin, mbin)
+    # nbin_set = np.arange(int(t[0]*fs), int(t[-1]*fs)-wbin, mbin)
+    nbin_set = np.arange(0, int((t[-1]-t[0])*fs)-wbin, mbin)
     num_f = wbin//2 + 1
     
     pxx = np.zeros((x.shape[0], num_f, len(nbin_set)))
@@ -96,7 +97,7 @@ def compute_spectrogram(x, fs, t=None, wbin_t=1, mbin_t=0.1, frange=None):
     if shrink_axis:
         pxx = pxx[0]
         
-    tp = (nbin_set + wbin/2)/fs
+    tp = (nbin_set + wbin/2)/fs + t[0]
     
     return f, tp, pxx
     
@@ -109,7 +110,7 @@ def compute_wavelet_spectrogram(
     frange=None,                 # (f0, f1) in Hz; if None, defaults to (lowest, Nyquist)
     fn: int = 100,               # number of frequency bins
     axis: int = -1,              # time axis
-    scaling: str = "log",        # "lin" or "log"
+    scaling: str = "lin",        # "lin" or "log"
     nthreads: int = None,        # None -> use os.cpu_count()
     fast: bool = False,           # use optimization plans
     norm: bool = True,           # normalize time-frequency output
@@ -198,9 +199,12 @@ def compute_wavelet_spectrogram(
             S_list.append(np.abs(coeffs))
         else:
             raise ValueError("mode must be 'power' or 'amplitude' for fCWT wrapper.")
-
-    # Stack back: (N, F, T) → (F, T, ...)
+        
     S = np.stack(S_list, axis=0)                # (N, F, T)
+    idf = np.argsort(f)
+    f = f[idf]
+    S = S[:,idf,...]
+    # Stack back: (N, F, T) → (F, T, ...)
     S = np.moveaxis(S, 1, -1)                   # (N, T, F)
     S = np.moveaxis(S, -1, 0)                   # (F, N, T)
     # Now reorder to [F, T, ...]
